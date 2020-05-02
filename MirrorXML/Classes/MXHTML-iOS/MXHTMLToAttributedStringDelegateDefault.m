@@ -193,8 +193,8 @@
             // This is a horrible hack, bound to break, and to possibly generate broken links
             // Ideally this would use WebKit's URLWithUserTypedString or a similar monster method
             // Please forgive me for writing this...
-            // Ticket number in CORE: Unknown. Reported to Vin 05/01/2020
-            
+            // https://knockr.atlassian.net/browse/CP-878
+
             NSString *remainingURLString = trimmedHref;
             NSMutableString *encodedURLString = [[NSMutableString alloc] initWithCapacity:hrefLength];
 
@@ -235,10 +235,12 @@
 
                 NSString *hostSeparator = @"/";
                 NSMutableArray *hostComponents = [[afterScheme componentsSeparatedByString:hostSeparator] mutableCopy];
-                // Note the >= 2
-                if (hostComponents.count >= 2) {
-                    NSString *hostString = hostComponents.firstObject;
+                NSUInteger hostComponentsCount = hostComponents.count;
 
+                NSString *hostString = hostComponents.firstObject;
+
+                // Note the >= 2
+                if (hostComponentsCount >= 2) {
                     [hostComponents removeObjectAtIndex:0];
 
                     NSString *pathString = [hostComponents componentsJoinedByString:hostSeparator];
@@ -246,36 +248,36 @@
                                            atIndex:0];
                     [encodedURLString insertString:hostSeparator
                                            atIndex:0];
+                }
 
-                    NSString *credentialsSeparator = @"@";
-                    NSArray *credentialComponents = [hostString componentsSeparatedByString:credentialsSeparator];
-                    if (credentialComponents.count == 2) {
-                        NSString *credentialString = credentialComponents.firstObject;
+                NSString *credentialsSeparator = @"@";
+                NSArray *credentialComponents = [hostString componentsSeparatedByString:credentialsSeparator];
+                if (credentialComponents.count == 2) {
+                    NSString *credentialString = credentialComponents.firstObject;
 
-                        NSString *hostString = credentialComponents.lastObject;
+                    NSString *hostString = credentialComponents.lastObject;
 
-                        [encodedURLString insertString:[hostString stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLHostAllowedCharacterSet]]
+                    [encodedURLString insertString:[hostString stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLHostAllowedCharacterSet]]
+                                           atIndex:0];
+
+                    NSString *subCredentialsSeparator = @":";
+                    NSArray *subCredentialComponents = [credentialString componentsSeparatedByString:subCredentialsSeparator];
+                    if (subCredentialComponents.count == 2) {
+                        NSString *userString = subCredentialComponents.firstObject;
+                        NSString *passwordString = subCredentialComponents.lastObject;
+
+                        [encodedURLString insertString:credentialsSeparator
                                                atIndex:0];
-
-                        NSString *subCredentialsSeparator = @":";
-                        NSArray *subCredentialComponents = [credentialString componentsSeparatedByString:subCredentialsSeparator];
-                        if (subCredentialComponents.count == 2) {
-                            NSString *userString = subCredentialComponents.firstObject;
-                            NSString *passwordString = subCredentialComponents.lastObject;
-
-                            [encodedURLString insertString:credentialsSeparator
-                                                   atIndex:0];
-                            [encodedURLString insertString:[passwordString stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLPasswordAllowedCharacterSet]]
-                                                   atIndex:0];
-                            [encodedURLString insertString:subCredentialsSeparator
-                                                   atIndex:0];
-                            [encodedURLString insertString:[userString stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLUserAllowedCharacterSet]]
-                                                   atIndex:0];
-                        }
-                    } else {
-                        [encodedURLString insertString:[hostString stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLHostAllowedCharacterSet]]
+                        [encodedURLString insertString:[passwordString stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLPasswordAllowedCharacterSet]]
+                                               atIndex:0];
+                        [encodedURLString insertString:subCredentialsSeparator
+                                               atIndex:0];
+                        [encodedURLString insertString:[userString stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLUserAllowedCharacterSet]]
                                                atIndex:0];
                     }
+                } else {
+                    [encodedURLString insertString:[hostString stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLHostAllowedCharacterSet]]
+                                           atIndex:0];
                 }
 
                 NSString *scheme = components.firstObject;

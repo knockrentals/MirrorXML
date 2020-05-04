@@ -186,27 +186,31 @@
             return newAttrs;
         }
 
+        //  RFC 1808, 1738 and 2732 attempt
         NSURL *parsedURL = [NSURL URLWithString:trimmedHref];
+
+        if (parsedURL == nil) {
+            // RFC 3986 attempt
+            NSURLComponents *urlComponents = [NSURLComponents componentsWithString:trimmedHref];
+            parsedURL = urlComponents.URL;
+        }
 
         if (parsedURL == nil) {
             // Since Knock does not return valid hrefs, NSURLComponents won't parse this, and we can't just use all of the URL character sets at once
             // This is a horrible hack, bound to break, and to possibly generate broken links
-            // Ideally this would use WebKit's URLWithUserTypedString or a similar monster method
+            // Ideally this would use a WhatWG compatible URL parser, such as `Skyr`, as Webkit's URL.h is not easily extractible
             // Please forgive me for writing this...
             // https://knockr.atlassian.net/browse/CP-878
 
+            NSURLComponents *urlComponents = [[NSURLComponents alloc] init];
+
             NSString *remainingURLString = trimmedHref;
-            NSMutableString *encodedURLString = [[NSMutableString alloc] initWithCapacity:hrefLength];
 
             // Encode fragment
             NSString *separator = @"#";
             NSArray *components = [remainingURLString componentsSeparatedByString:separator];
             if (components.count == 2) {
-                NSString *fragmentString = components.lastObject;
-                [encodedURLString insertString:[fragmentString stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLFragmentAllowedCharacterSet]]
-                                       atIndex:0];
-                [encodedURLString insertString:separator
-                                       atIndex:0];
+                urlComponents.fragment = components.lastObject;
                 NSMutableArray *mutableComponents = [components mutableCopy];
                 [mutableComponents removeLastObject];
                 remainingURLString = [mutableComponents componentsJoinedByString:@""];
@@ -216,20 +220,16 @@
             separator = @"?";
             components = [remainingURLString componentsSeparatedByString:separator];
             if (components.count == 2) {
-                NSString *queryString = components.lastObject;
-                [encodedURLString insertString:[queryString stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]]
-                                       atIndex:0];
-                [encodedURLString insertString:separator
-                                       atIndex:0];
+                urlComponents.query = components.lastObject;
                 NSMutableArray *mutableComponents = [components mutableCopy];
                 [mutableComponents removeLastObject];
                 remainingURLString = [mutableComponents componentsJoinedByString:@""];
             }
 
             // Encode host
-            separator = @"//";
+            separator = @"://";
             components = [remainingURLString componentsSeparatedByString:separator];
-            // Note the >=, as it will match // for the host
+            // Note the >=, as it will match '://' for the host
             if (components.count == 2) {
                 NSString *afterScheme = components.lastObject;
 
@@ -244,10 +244,7 @@
                     [hostComponents removeObjectAtIndex:0];
 
                     NSString *pathString = [hostComponents componentsJoinedByString:hostSeparator];
-                    [encodedURLString insertString:[pathString stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLPathAllowedCharacterSet]]
-                                           atIndex:0];
-                    [encodedURLString insertString:hostSeparator
-                                           atIndex:0];
+                    urlComponents.path = [NSString stringWithFormat:@"/%@", pathString];
                 }
 
                 NSString *credentialsSeparator = @"@";
@@ -257,8 +254,7 @@
 
                     NSString *hostString = credentialComponents.lastObject;
 
-                    [encodedURLString insertString:[hostString stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLHostAllowedCharacterSet]]
-                                           atIndex:0];
+                    urlComponents.host = hostString;
 
                     NSString *subCredentialsSeparator = @":";
                     NSArray *subCredentialComponents = [credentialString componentsSeparatedByString:subCredentialsSeparator];
@@ -266,30 +262,20 @@
                         NSString *userString = subCredentialComponents.firstObject;
                         NSString *passwordString = subCredentialComponents.lastObject;
 
-                        [encodedURLString insertString:credentialsSeparator
-                                               atIndex:0];
-                        [encodedURLString insertString:[passwordString stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLPasswordAllowedCharacterSet]]
-                                               atIndex:0];
-                        [encodedURLString insertString:subCredentialsSeparator
-                                               atIndex:0];
-                        [encodedURLString insertString:[userString stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLUserAllowedCharacterSet]]
-                                               atIndex:0];
+                        urlComponents.password = passwordString;
+                        urlComponents.user = userString;
                     }
                 } else {
-                    [encodedURLString insertString:[hostString stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLHostAllowedCharacterSet]]
-                                           atIndex:0];
+                    urlComponents.host = hostString;
                 }
 
                 NSString *scheme = components.firstObject;
-                [encodedURLString insertString:separator
-                                       atIndex:0];
-                [encodedURLString insertString:scheme
-                                       atIndex:0];
+                urlComponents.scheme = scheme;
             }
 
-            parsedURL = [NSURL URLWithString:encodedURLString];
+            parsedURL = urlComponents.URL;
             if (parsedURL == nil) {
-                NSLog(@"WARNING: Could not parse url: '%@'.\nBest attempt: '%@'", htmlAttributes[@"href"], encodedURLString);
+                NSLog(@"WARNING: Could not parse url: '%@'.\nBest attempt: '%@'", htmlAttributes[@"href"], urlComponents);
             }
         }
 

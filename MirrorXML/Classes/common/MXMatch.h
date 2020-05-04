@@ -80,7 +80,7 @@ typedef void            (^MXErrorHandler)(NSError *, MXElement *);
  
  The block takes an NSError * parameter, and an MXElement * parameter (the element being parsed where the error occurred).
  
- To get a callback that will occur if an error is encountered anywhere in the document, create an MXMatch object with the pattern '//*', and assign a block object to this property.
+ To get a callback that will occur if an error is encountered anywhere in the document, create an MXMatch object with the pattern '(/)(/)*' without the parentheses, and assign a block object to this property.
  
  Note that errors encountered during html parsing (with MXHTMLParser) are often not fatal (for libxml).
 */
